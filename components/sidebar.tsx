@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { FileText, Home, Layers, Users, Bug } from "lucide-react"
@@ -41,8 +42,7 @@ export function Sidebar() {
       <div className="flex h-full flex-col gap-2">
         <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
           <Link href="/admin/dashboard" className="flex items-center gap-2 font-semibold">
-            <FileText className="h-6 w-6" />
-            <span>SGR</span>
+            <Image src="/images/selettra-logo.svg" alt="Selettra Logo" width={100} height={40} className="h-8 w-auto" />
           </Link>
         </div>
         <div className="flex-1 overflow-auto py-2">
