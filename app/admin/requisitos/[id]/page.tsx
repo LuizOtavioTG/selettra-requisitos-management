@@ -11,10 +11,21 @@ import { useParams, useRouter } from "next/navigation"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { EditarRequisitoModal } from "@/components/modals/editar-requisito-modal"
 import { ProtectedRoute } from "@/components/auth/protected-route"
-import { getRequisitoById, type Requisito } from "@/lib/sharepoint/requisitos-service"
+import { getRequisitoById, excluirRequisito, type Requisito } from "@/lib/sharepoint/requisitos-service"
+import { getFuncionarios, type Funcionario } from "@/lib/sharepoint/funcionarios-service"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 // Dados de exemplo para movimentações e anexos
 const movimentacoes = [
@@ -61,10 +72,13 @@ export default function RequisitoDetalhesPage() {
   const id = params.id as string
 
   const [requisito, setRequisito] = useState<Requisito | null>(null)
+  const [funcionarios, setFuncionarios] = useState<Funcionario[]>([])
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [deletingRequisito, setDeletingRequisito] = useState(false)
 
   // Função para carregar os dados do requisito
   const carregarRequisito = async () => {
@@ -85,9 +99,20 @@ export default function RequisitoDetalhesPage() {
     }
   }
 
-  // Carregar requisito ao montar o componente
+  // Função para carregar funcionários
+  const carregarFuncionarios = async () => {
+    try {
+      const data = await getFuncionarios()
+      setFuncionarios(data)
+    } catch (err: any) {
+      console.error("Erro ao carregar funcionários:", err)
+    }
+  }
+
+  // Carregar requisito e funcionários ao montar o componente
   useEffect(() => {
     carregarRequisito()
+    carregarFuncionarios()
   }, [id])
 
   // Função para atualizar os dados
@@ -98,21 +123,23 @@ export default function RequisitoDetalhesPage() {
   }
 
   // Função para salvar edições no requisito
-  const handleSaveRequisito = (data: any) => {
-    // Aqui seria implementada a lógica para salvar as alterações no SharePoint
-    console.log("Salvando alterações:", data)
+  const handleSaveRequisito = (requisitoAtualizado: Requisito) => {
+    // Atualizar o estado local com o requisito atualizado
+    setRequisito(requisitoAtualizado)
+  }
 
-    // Por enquanto, apenas atualizamos o estado local
-    if (requisito) {
-      setRequisito({
-        ...requisito,
-        codigo: data.codigo,
-        descricao: data.descricao,
-        descricaoCompleta: data.descricaoCompleta,
-        status: data.status,
-        situacao: data.situacao,
-        funcionarioId: data.funcionario,
-      })
+  // Função para excluir o requisito
+  const handleDeleteRequisito = async () => {
+    try {
+      setDeletingRequisito(true)
+      await excluirRequisito(id)
+      router.push("/admin/requisitos")
+    } catch (err: any) {
+      console.error("Erro ao excluir requisito:", err)
+      setError("Não foi possível excluir o requisito. Verifique sua conexão e permissões.")
+    } finally {
+      setDeletingRequisito(false)
+      setIsDeleteDialogOpen(false)
     }
   }
 
@@ -180,7 +207,7 @@ export default function RequisitoDetalhesPage() {
               <Edit className="mr-2 h-4 w-4" />
               Editar
             </Button>
-            <Button variant="destructive" disabled={!requisito}>
+            <Button variant="destructive" onClick={() => setIsDeleteDialogOpen(true)} disabled={!requisito}>
               <Trash className="mr-2 h-4 w-4" />
               Excluir
             </Button>
@@ -351,8 +378,33 @@ export default function RequisitoDetalhesPage() {
             onClose={() => setIsEditModalOpen(false)}
             onSave={handleSaveRequisito}
             requisito={requisito}
+            funcionarios={funcionarios.map((f) => ({ id: f.id, nome: f.nome }))}
           />
         )}
+
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir Requisito</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir este requisito? Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deletingRequisito}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteRequisito} disabled={deletingRequisito}>
+                {deletingRequisito ? (
+                  <>
+                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                    Excluindo...
+                  </>
+                ) : (
+                  "Sim, excluir"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </ProtectedRoute>
   )

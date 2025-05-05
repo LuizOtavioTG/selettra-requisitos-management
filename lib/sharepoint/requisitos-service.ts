@@ -10,6 +10,7 @@ export interface Requisito {
   situacao: string
   funcionarioId?: string | number
   funcionarioNome?: string
+  setorNome?: string
   dataCriacao: string
 }
 
@@ -151,6 +152,88 @@ export async function adicionarRequisito(requisito: {
     }
   } catch (error) {
     console.error("Erro ao adicionar requisito no SharePoint:", error)
+    throw error
+  }
+}
+
+// Função para atualizar um requisito existente
+export async function atualizarRequisito(
+  id: string,
+  requisito: {
+    codigo: string
+    descricao: string
+    descricaoCompleta?: string
+    status: string
+    situacao: string
+    funcionarioId?: string | number
+  },
+): Promise<Requisito> {
+  try {
+    const token = await getTokenSilently()
+
+    const endpoint = `https://graph.microsoft.com/v1.0/sites/luizotg.sharepoint.com:/sites/Selettra:/lists/Lista%20de%20Requisitos/items/${id}`
+
+    console.log("Atualizando requisito:", id, requisito)
+
+    const response = await fetch(endpoint, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        fields: {
+          Title: requisito.codigo,
+          Descri_x00e7__x00e3_o: requisito.descricao,
+          Descri_x00e7__x00e3_ocompleta: requisito.descricaoCompleta || "",
+          Status: requisito.status,
+          Situa_x00e7__x00e3_o: requisito.situacao,
+          Funcion_x00e1_rio_x0028_s_x0029_LookupId: requisito.funcionarioId,
+        },
+      }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(`Erro ao atualizar requisito: ${JSON.stringify(errorData)}`)
+    }
+
+    // Obter o requisito atualizado
+    const requisitoAtualizado = await getRequisitoById(id)
+    if (!requisitoAtualizado) {
+      throw new Error("Não foi possível obter o requisito atualizado")
+    }
+
+    return requisitoAtualizado
+  } catch (error) {
+    console.error(`Erro ao atualizar requisito com ID ${id}:`, error)
+    throw error
+  }
+}
+
+// Função para excluir um requisito
+export async function excluirRequisito(id: string): Promise<boolean> {
+  try {
+    const token = await getTokenSilently()
+
+    const endpoint = `https://graph.microsoft.com/v1.0/sites/luizotg.sharepoint.com:/sites/Selettra:/lists/Lista%20de%20Requisitos/items/${id}`
+
+    const response = await fetch(endpoint, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    })
+
+    if (!response.ok) {
+      const errorData = await response.text()
+      throw new Error(`Erro ao excluir requisito: ${errorData}`)
+    }
+
+    return true
+  } catch (error) {
+    console.error(`Erro ao excluir requisito com ID ${id}:`, error)
     throw error
   }
 }

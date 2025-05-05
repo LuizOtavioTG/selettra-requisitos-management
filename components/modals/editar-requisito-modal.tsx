@@ -18,24 +18,33 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Save } from "lucide-react"
 import type { Requisito } from "@/lib/sharepoint/requisitos-service"
+import { atualizarRequisito } from "@/lib/sharepoint/requisitos-service"
 
 interface EditarRequisitoModalProps {
   isOpen: boolean
   onClose: () => void
-  onSave: (data: any) => void
+  onSave: (data: Requisito) => void
   requisito: Requisito
+  funcionarios?: Array<{ id: string | number; nome: string }>
 }
 
-export function EditarRequisitoModal({ isOpen, onClose, onSave, requisito }: EditarRequisitoModalProps) {
+export function EditarRequisitoModal({
+  isOpen,
+  onClose,
+  onSave,
+  requisito,
+  funcionarios = [],
+}: EditarRequisitoModalProps) {
   const [formData, setFormData] = useState({
     codigo: "",
     descricao: "",
     descricaoCompleta: "",
     status: "",
     situacao: "",
-    funcionario: "",
+    funcionarioId: "",
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // Atualiza o formulário quando o requisito muda
   useEffect(() => {
@@ -46,7 +55,7 @@ export function EditarRequisitoModal({ isOpen, onClose, onSave, requisito }: Edi
         descricaoCompleta: requisito.descricaoCompleta || "",
         status: requisito.status || "Cadastrada",
         situacao: requisito.situacao || "Ativa",
-        funcionario: requisito.funcionarioId?.toString() || "",
+        funcionarioId: requisito.funcionarioId?.toString() || "",
       })
     }
   }, [requisito])
@@ -63,12 +72,25 @@ export function EditarRequisitoModal({ isOpen, onClose, onSave, requisito }: Edi
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
+    setError(null)
 
     try {
-      await onSave({ ...formData, id: requisito.id })
+      // Atualizar o requisito no SharePoint
+      const requisitoAtualizado = await atualizarRequisito(requisito.id.toString(), {
+        codigo: formData.codigo,
+        descricao: formData.descricao,
+        descricaoCompleta: formData.descricaoCompleta,
+        status: formData.status,
+        situacao: formData.situacao,
+        funcionarioId: formData.funcionarioId ? formData.funcionarioId : undefined,
+      })
+
+      // Notificar o componente pai sobre a atualização
+      onSave(requisitoAtualizado)
       onClose()
-    } catch (error) {
-      console.error("Erro ao salvar requisito:", error)
+    } catch (err: any) {
+      console.error("Erro ao salvar requisito:", err)
+      setError(err.message || "Erro ao atualizar o requisito")
     } finally {
       setIsSubmitting(false)
     }
@@ -82,6 +104,12 @@ export function EditarRequisitoModal({ isOpen, onClose, onSave, requisito }: Edi
             <DialogTitle>Editar Requisito</DialogTitle>
             <DialogDescription>Atualize as informações do requisito #{requisito?.id}.</DialogDescription>
           </DialogHeader>
+          {error && (
+            <div className="bg-destructive/15 text-destructive p-3 rounded-md mb-4">
+              <p className="font-medium">Erro</p>
+              <p className="text-sm">{error}</p>
+            </div>
+          )}
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
@@ -96,20 +124,21 @@ export function EditarRequisitoModal({ isOpen, onClose, onSave, requisito }: Edi
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="funcionario">Funcionário Responsável</Label>
+                <Label htmlFor="funcionarioId">Funcionário Responsável</Label>
                 <Select
-                  value={formData.funcionario}
-                  onValueChange={(value) => handleSelectChange("funcionario", value)}
+                  value={formData.funcionarioId}
+                  onValueChange={(value) => handleSelectChange("funcionarioId", value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione um funcionário" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1">João Silva</SelectItem>
-                    <SelectItem value="2">Maria Oliveira</SelectItem>
-                    <SelectItem value="3">Carlos Santos</SelectItem>
-                    <SelectItem value="4">Ana Pereira</SelectItem>
-                    <SelectItem value="5">Roberto Alves</SelectItem>
+                    <SelectItem value="-1">Nenhum</SelectItem>
+                    {funcionarios.map((funcionario) => (
+                      <SelectItem key={funcionario.id.toString()} value={funcionario.id.toString()}>
+                        {funcionario.nome}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
