@@ -108,6 +108,7 @@ export default function RequisitoDetalhesPage() {
         ...requisito,
         codigo: data.codigo,
         descricao: data.descricao,
+        descricaoCompleta: data.descricaoCompleta,
         status: data.status,
         situacao: data.situacao,
         funcionarioId: data.funcionario,
@@ -128,6 +129,32 @@ export default function RequisitoDetalhesPage() {
         </p>
       )
     })
+  }
+
+  // Função para obter a variante do badge de status
+  const getVarianteStatus = (status: string) => {
+    switch (status) {
+      case "Realizada":
+        return "success"
+      case "Andamento":
+        return "warning"
+      case "Cadastrada":
+        return "default"
+      default:
+        return "default"
+    }
+  }
+
+  // Função para obter a variante do badge de situação
+  const getVarianteSituacao = (situacao: string) => {
+    switch (situacao) {
+      case "Ativa":
+        return "outline"
+      case "Inativa":
+        return "secondary"
+      default:
+        return "outline"
+    }
   }
 
   return (
@@ -186,18 +213,8 @@ export default function RequisitoDetalhesPage() {
                   </CardDescription>
                 </div>
                 <div className="flex gap-2">
-                  <Badge
-                    variant={
-                      requisito.status === "Realizada"
-                        ? "success"
-                        : requisito.status === "Andamento"
-                          ? "warning"
-                          : "default"
-                    }
-                  >
-                    {requisito.status}
-                  </Badge>
-                  <Badge variant={requisito.situacao === "Ativa" ? "outline" : "secondary"}>{requisito.situacao}</Badge>
+                  <Badge variant={getVarianteStatus(requisito.status)}>{requisito.status}</Badge>
+                  <Badge variant={getVarianteSituacao(requisito.situacao)}>{requisito.situacao}</Badge>
                 </div>
               </div>
             </CardHeader>
