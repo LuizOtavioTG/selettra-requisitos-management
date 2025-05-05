@@ -152,7 +152,7 @@ export default function FuncionarioDetalhesPage() {
                   <CardTitle className="text-2xl">{funcionario.nome}</CardTitle>
                   <CardDescription>ID: {funcionario.id}</CardDescription>
                 </div>
-                <Badge variant={funcionario.status === "Ativo" ? "outline" : "secondary"}>{funcionario.status}</Badge>
+                <Badge variant={funcionario.status === "Ativo" ? "active" : "inactive"}>{funcionario.status}</Badge>
               </div>
             </CardHeader>
             <CardContent className="space-y-6">

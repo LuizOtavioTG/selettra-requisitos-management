@@ -26,29 +26,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { getMovimentacoesByRequisitoId, type Movimentacao } from "@/lib/sharepoint/movimentacoes-service"
+import { useToast } from "@/hooks/use-toast"
 
-// Dados de exemplo para movimentações e anexos
-const movimentacoes = [
-  {
-    id: 1,
-    data: "10/04/2023 14:30",
-    funcionario: "João Silva",
-    descricao: "Requisito cadastrado no sistema",
-  },
-  {
-    id: 2,
-    data: "12/04/2023 09:15",
-    funcionario: "Maria Oliveira",
-    descricao: "Análise inicial do requisito",
-  },
-  {
-    id: 3,
-    data: "15/04/2023 16:45",
-    funcionario: "Carlos Santos",
-    descricao: "Atribuição de prioridade alta",
-  },
-]
-
+// Dados de exemplo para anexos
 const anexos = [
   {
     id: 1,
@@ -70,6 +51,7 @@ export default function RequisitoDetalhesPage() {
   const params = useParams()
   const router = useRouter()
   const id = params.id as string
+  const { toast } = useToast()
 
   const [requisito, setRequisito] = useState<Requisito | null>(null)
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([])
@@ -79,6 +61,11 @@ export default function RequisitoDetalhesPage() {
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [deletingRequisito, setDeletingRequisito] = useState(false)
+
+  // Estado para movimentações
+  const [movimentacoes, setMovimentacoes] = useState<Movimentacao[]>([])
+  const [movimentacoesLoading, setMovimentacoesLoading] = useState(true)
+  const [movimentacoesError, setMovimentacoesError] = useState<string | null>(null)
 
   // Função para carregar os dados do requisito
   const carregarRequisito = async () => {
@@ -99,6 +86,32 @@ export default function RequisitoDetalhesPage() {
     }
   }
 
+  // Função para carregar movimentações
+  const carregarMovimentacoes = async () => {
+    if (!id) return
+
+    try {
+      setMovimentacoesLoading(true)
+      setMovimentacoesError(null)
+
+      console.log(`Iniciando carregamento de movimentações para requisito ${id}`)
+      const movimentacoesData = await getMovimentacoesByRequisitoId(id)
+      console.log(`Movimentações carregadas:`, movimentacoesData)
+
+      setMovimentacoes(movimentacoesData)
+    } catch (err: any) {
+      console.error("Erro ao carregar movimentações:", err)
+      setMovimentacoesError("Não foi possível carregar as movimentações. Verifique sua conexão e permissões.")
+      toast({
+        title: "Erro ao carregar movimentações",
+        description: err.message || "Ocorreu um erro ao carregar as movimentações",
+        variant: "destructive",
+      })
+    } finally {
+      setMovimentacoesLoading(false)
+    }
+  }
+
   // Função para carregar funcionários
   const carregarFuncionarios = async () => {
     try {
@@ -109,16 +122,22 @@ export default function RequisitoDetalhesPage() {
     }
   }
 
-  // Carregar requisito e funcionários ao montar o componente
+  // Carregar dados iniciais
   useEffect(() => {
-    carregarRequisito()
-    carregarFuncionarios()
+    const carregarDados = async () => {
+      await Promise.all([carregarRequisito(), carregarFuncionarios()])
+
+      // Carregar movimentações após carregar o requisito
+      await carregarMovimentacoes()
+    }
+
+    carregarDados()
   }, [id])
 
   // Função para atualizar os dados
   const handleRefresh = async () => {
     setRefreshing(true)
-    await carregarRequisito()
+    await Promise.all([carregarRequisito(), carregarMovimentacoes()])
     setRefreshing(false)
   }
 
@@ -176,12 +195,67 @@ export default function RequisitoDetalhesPage() {
   const getVarianteSituacao = (situacao: string) => {
     switch (situacao) {
       case "Ativa":
-        return "outline"
+        return "active"
       case "Inativa":
-        return "secondary"
+        return "inactive"
       default:
         return "outline"
     }
+  }
+
+  // Renderizar a tabela de movimentações
+  const renderMovimentacoesTable = () => {
+    if (movimentacoesLoading) {
+      return (
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-12 w-full" />
+          ))}
+        </div>
+      )
+    }
+
+    if (movimentacoesError) {
+      return (
+        <Alert variant="destructive" className="my-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Erro</AlertTitle>
+          <AlertDescription>{movimentacoesError}</AlertDescription>
+        </Alert>
+      )
+    }
+
+    if (movimentacoes.length === 0) {
+      return (
+        <div className="text-center py-8 text-muted-foreground">
+          <p>Nenhuma movimentação registrada para este requisito</p>
+          <div className="mt-2 text-xs">
+            <p>ID do requisito: {id}</p>
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Data</TableHead>
+            <TableHead>Funcionário</TableHead>
+            <TableHead>Descrição</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {movimentacoes.map((mov) => (
+            <TableRow key={mov.id}>
+              <TableCell>{mov.dataCriacao}</TableCell>
+              <TableCell>{mov.funcionarioNome}</TableCell>
+              <TableCell>{mov.descricao}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    )
   }
 
   return (
@@ -286,26 +360,7 @@ export default function RequisitoDetalhesPage() {
                       <CardTitle className="text-lg">Histórico de Movimentações deste Requisito</CardTitle>
                       <CardDescription>Registro de todas as ações realizadas neste requisito</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Data</TableHead>
-                            <TableHead>Funcionário</TableHead>
-                            <TableHead>Descrição</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {movimentacoes.map((mov) => (
-                            <TableRow key={mov.id}>
-                              <TableCell>{mov.data}</TableCell>
-                              <TableCell>{mov.funcionario}</TableCell>
-                              <TableCell>{mov.descricao}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </CardContent>
+                    <CardContent>{renderMovimentacoesTable()}</CardContent>
                     <CardFooter>
                       <Link href={`/admin/requisitos/${id}/nova-movimentacao`} className="ml-auto">
                         <Button variant="outline">

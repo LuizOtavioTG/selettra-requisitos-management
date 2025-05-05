@@ -8,19 +8,44 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft, Save } from "lucide-react"
 import Link from "next/link"
-import { useParams } from "next/navigation"
-import { useState } from "react"
+import { useParams, useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
 import { Label } from "@/components/ui/label"
 import { ProtectedRoute } from "@/components/auth/protected-route"
+import { adicionarMovimentacao } from "@/lib/sharepoint/movimentacoes-service"
+import { getFuncionarios } from "@/lib/sharepoint/funcionarios-service"
+import { useToast } from "@/hooks/use-toast"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertCircle } from "lucide-react"
 
 export default function NovaMovimentacaoPage() {
   const params = useParams()
-  const requisitoId = params.id
+  const router = useRouter()
+  const requisitoId = params.id as string
+  const { toast } = useToast()
 
   const [formData, setFormData] = useState({
     funcionario: "",
     acao: "",
   })
+  const [funcionarios, setFuncionarios] = useState<Array<{ id: string | number; nome: string }>>([])
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Carregar funcionários ao montar o componente
+  useEffect(() => {
+    const carregarFuncionarios = async () => {
+      try {
+        const data = await getFuncionarios()
+        setFuncionarios(data.map((f) => ({ id: f.id, nome: f.nome })))
+      } catch (err: any) {
+        console.error("Erro ao carregar funcionários:", err)
+        setError("Não foi possível carregar a lista de funcionários.")
+      }
+    }
+
+    carregarFuncionarios()
+  }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -31,11 +56,43 @@ export default function NovaMovimentacaoPage() {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Aqui seria implementada a lógica para salvar a movimentação
-    console.log("Dados da movimentação:", { ...formData, requisitoId })
-    // Redirecionar para a página de detalhes do requisito após salvar
+    setIsSubmitting(true)
+    setError(null)
+
+    try {
+      console.log("Enviando movimentação:", {
+        descricao: formData.acao,
+        requisitoId: requisitoId,
+        funcionarioId: formData.funcionario || undefined,
+      })
+
+      // Adicionar a movimentação
+      await adicionarMovimentacao({
+        descricao: formData.acao,
+        requisitoId: requisitoId,
+        funcionarioId: formData.funcionario || undefined,
+      })
+
+      toast({
+        title: "Movimentação registrada",
+        description: "A movimentação foi registrada com sucesso.",
+      })
+
+      // Redirecionar para a página de detalhes do requisito
+      router.push(`/admin/requisitos/${requisitoId}`)
+    } catch (err: any) {
+      console.error("Erro ao salvar movimentação:", err)
+      setError(err.message || "Ocorreu um erro ao registrar a movimentação.")
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao registrar a movimentação.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -54,6 +111,14 @@ export default function NovaMovimentacaoPage() {
           </Link>
         </div>
 
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Erro</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
         <form onSubmit={handleSubmit}>
           <Card>
             <CardHeader>
@@ -71,11 +136,18 @@ export default function NovaMovimentacaoPage() {
                     <SelectValue placeholder="Selecione um funcionário" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1">João Silva</SelectItem>
-                    <SelectItem value="2">Maria Oliveira</SelectItem>
-                    <SelectItem value="3">Carlos Santos</SelectItem>
-                    <SelectItem value="4">Ana Pereira</SelectItem>
-                    <SelectItem value="5">Roberto Alves</SelectItem>
+                    {funcionarios.length === 0 ? (
+                      <SelectItem value="carregando">Carregando funcionários...</SelectItem>
+                    ) : (
+                      <>
+                        <SelectItem value="selecione">Selecione um funcionário</SelectItem>
+                        {funcionarios.map((funcionario) => (
+                          <SelectItem key={funcionario.id.toString()} value={funcionario.id.toString()}>
+                            {funcionario.nome}
+                          </SelectItem>
+                        ))}
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -97,9 +169,18 @@ export default function NovaMovimentacaoPage() {
               <Link href={`/admin/requisitos/${requisitoId}`}>
                 <Button variant="outline">Cancelar</Button>
               </Link>
-              <Button type="submit">
-                <Save className="mr-2 h-4 w-4" />
-                Salvar
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Salvar
+                  </>
+                )}
               </Button>
             </CardFooter>
           </Card>

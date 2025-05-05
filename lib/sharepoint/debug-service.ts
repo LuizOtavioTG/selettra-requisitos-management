@@ -7,10 +7,12 @@ export async function getSharePointListRaw(listName: string) {
     const token = await getTokenSilently()
 
     // Codificar o nome da lista para URL
-    // Tratamento especial para a lista de funcionários que tem codificação diferente na URL
+    // Tratamento especial para listas com codificação diferente na URL
     let encodedListName
     if (listName === "Lista de Funcionários") {
       encodedListName = "Lista%20de%20Funcion%C3%A1rios"
+    } else if (listName === "Lista de Movimentação") {
+      encodedListName = "Lista%20de%20Movimenta%C3%A7%C3%A3o"
     } else {
       encodedListName = encodeURIComponent(listName)
     }
@@ -50,10 +52,12 @@ export async function getSharePointItemRaw(listName: string, itemId: string) {
     const token = await getTokenSilently()
 
     // Codificar o nome da lista para URL
-    // Tratamento especial para a lista de funcionários que tem codificação diferente na URL
+    // Tratamento especial para listas com codificação diferente na URL
     let encodedListName
     if (listName === "Lista de Funcionários") {
       encodedListName = "Lista%20de%20Funcion%C3%A1rios"
+    } else if (listName === "Lista de Movimentação") {
+      encodedListName = "Lista%20de%20Movimenta%C3%A7%C3%A3o"
     } else {
       encodedListName = encodeURIComponent(listName)
     }
@@ -117,10 +121,12 @@ export async function getSharePointListDetails(listName: string) {
     const token = await getTokenSilently()
 
     // Codificar o nome da lista para URL
-    // Tratamento especial para a lista de funcionários que tem codificação diferente na URL
+    // Tratamento especial para listas com codificação diferente na URL
     let encodedListName
     if (listName === "Lista de Funcionários") {
       encodedListName = "Lista%20de%20Funcion%C3%A1rios"
+    } else if (listName === "Lista de Movimentação") {
+      encodedListName = "Lista%20de%20Movimenta%C3%A7%C3%A3o"
     } else {
       encodedListName = encodeURIComponent(listName)
     }

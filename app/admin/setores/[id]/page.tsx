@@ -240,7 +240,7 @@ export default function SetorDetalhesPage() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={funcionario.status === "Ativo" ? "outline" : "secondary"}>
+                            <Badge variant={funcionario.status === "Ativo" ? "active" : "inactive"}>
                               {funcionario.status}
                             </Badge>
                           </TableCell>

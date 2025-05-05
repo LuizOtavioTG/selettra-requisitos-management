@@ -11,12 +11,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getSharePointListRaw, getSharePointListDetails } from "@/lib/sharepoint/debug-service"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { getTokenSilently } from "@/lib/auth/msal-utils"
 
 // Lista de opções disponíveis
 const listaOptions = [
   { value: "Lista de Requisitos", label: "Lista de Requisitos" },
   { value: "Lista de Setores", label: "Lista de Setores" },
   { value: "Lista de Funcionários", label: "Lista de Funcionários" },
+  { value: "Lista de Movimentação", label: "Lista de Movimentação" },
 ]
 
 export default function DebugPage() {
@@ -26,6 +29,7 @@ export default function DebugPage() {
   const [columnsData, setColumnsData] = useState<any>(null)
   const [activeTab, setActiveTab] = useState("items")
   const [selectedList, setSelectedList] = useState("Lista de Requisitos")
+  const [requisitoId, setRequisitoId] = useState<string>("")
 
   // Carregar dados automaticamente ao montar o componente ou quando a lista selecionada mudar
   useEffect(() => {
@@ -48,6 +52,57 @@ export default function DebugPage() {
     } catch (err: any) {
       setError(err.message || `Erro ao carregar dados da ${selectedList}`)
       console.error("Erro ao carregar dados:", err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Função para testar diretamente a API de movimentações
+  const testMovimentacoes = async (requisitoId: string) => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      // Obter token de acesso
+      const token = await getTokenSilently()
+
+      // Endpoint da API do Microsoft Graph para acessar a lista de movimentações
+      const endpoint = `https://graph.microsoft.com/v1.0/sites/luizotg.sharepoint.com:/sites/Selettra:/lists/Lista%20de%20Movimenta%C3%A7%C3%A3o/items?expand=fields`
+
+      console.log(`Testando API de movimentações`)
+      console.log(`Endpoint: ${endpoint}`)
+
+      const response = await fetch(endpoint, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error(`Erro na resposta da API:`, errorData)
+        throw new Error(`Erro ao obter movimentações: ${JSON.stringify(errorData)}`)
+      }
+
+      const data = await response.json()
+      console.log(`Todas as movimentações:`, data)
+
+      // Se um ID de requisito foi fornecido, filtrar as movimentações
+      if (requisitoId) {
+        const filteredData = {
+          ...data,
+          value: data.value.filter((item: any) => item.fields.RequisitoLookupId === requisitoId),
+        }
+        console.log(`Movimentações filtradas para o requisito ${requisitoId}:`, filteredData)
+        setListData(filteredData)
+      } else {
+        setListData(data)
+      }
+    } catch (err: any) {
+      setError(err.message || `Erro ao testar API de movimentações`)
+      console.error("Erro ao testar API de movimentações:", err)
     } finally {
       setLoading(false)
     }
@@ -99,6 +154,22 @@ export default function DebugPage() {
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="flex items-center space-x-4 mt-4">
+          <Label htmlFor="requisito-id" className="whitespace-nowrap">
+            ID do Requisito:
+          </Label>
+          <Input
+            id="requisito-id"
+            placeholder="Digite o ID do requisito"
+            className="w-[200px]"
+            value={requisitoId}
+            onChange={(e) => setRequisitoId(e.target.value)}
+          />
+          <Button onClick={() => testMovimentacoes(requisitoId)} disabled={loading} variant="outline">
+            Testar API de Movimentações
+          </Button>
         </div>
 
         {error && (

@@ -152,9 +152,9 @@ export default function RequisitosPage() {
   const getVarianteSituacao = (situacao: string) => {
     switch (situacao) {
       case "Ativa":
-        return "outline"
+        return "active"
       case "Inativa":
-        return "secondary"
+        return "inactive"
       default:
         return "outline"
     }

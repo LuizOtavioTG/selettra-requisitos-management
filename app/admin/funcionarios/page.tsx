@@ -14,6 +14,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { NovoFuncionarioModal } from "@/components/modals/novo-funcionario-modal"
+// Adicionar importação para getSetores
+import { getSetores, type Setor } from "@/lib/sharepoint/sharepoint-service"
 
 export default function FuncionariosPage() {
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([])
@@ -23,6 +25,8 @@ export default function FuncionariosPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [filtroStatus, setFiltroStatus] = useState<"Todos" | "Ativo" | "Inativo">("Todos")
   const [filtroSetor, setFiltroSetor] = useState<string | null>(null)
+  // Adicionar estado para armazenar os setores
+  const [setores, setSetores] = useState<Setor[]>([])
 
   // Função para carregar os funcionários
   const carregarFuncionarios = async () => {
@@ -39,9 +43,20 @@ export default function FuncionariosPage() {
     }
   }
 
+  // Adicionar função para carregar os setores
+  const carregarSetores = async () => {
+    try {
+      const data = await getSetores()
+      setSetores(data)
+    } catch (err: any) {
+      console.error("Erro ao carregar setores:", err)
+    }
+  }
+
   // Carregar funcionários ao montar o componente
   useEffect(() => {
     carregarFuncionarios()
+    carregarSetores()
   }, [])
 
   // Função para atualizar a lista
@@ -80,7 +95,7 @@ export default function FuncionariosPage() {
   })
 
   // Obter lista de setores únicos para o filtro
-  const setores = [...new Set(funcionarios.map((f) => ({ id: f.setorId, nome: f.setorNome })))].filter(
+  const setoresUnicos = [...new Set(funcionarios.map((f) => ({ id: f.setorId, nome: f.setorNome })))].filter(
     (s) => s.id !== null,
   )
 
@@ -109,7 +124,7 @@ export default function FuncionariosPage() {
                 <DropdownMenuItem onClick={() => setFiltroStatus("Ativo")}>Ativos</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setFiltroStatus("Inativo")}>Inativos</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setFiltroSetor(null)}>Todos os Setores</DropdownMenuItem>
-                {setores.map((setor) => (
+                {setoresUnicos.map((setor) => (
                   <DropdownMenuItem
                     key={setor.id?.toString()}
                     onClick={() => setFiltroSetor(setor.id?.toString() || null)}
@@ -172,7 +187,7 @@ export default function FuncionariosPage() {
                         <TableCell className="font-medium">{funcionario.id}</TableCell>
                         <TableCell>{funcionario.nome}</TableCell>
                         <TableCell>
-                          <Badge variant={funcionario.status === "Ativo" ? "outline" : "secondary"}>
+                          <Badge variant={funcionario.status === "Ativo" ? "active" : "inactive"}>
                             {funcionario.status}
                           </Badge>
                         </TableCell>
