@@ -13,6 +13,9 @@ export async function getSharePointListRaw(listName: string) {
     // Adicionando top=1000 para garantir que obtemos todos os itens (até 1000)
     const endpoint = `https://graph.microsoft.com/v1.0/sites/luizotg.sharepoint.com:/sites/Selettra:/lists/${encodedListName}/items?expand=fields&$top=1000`
 
+    console.log(`Buscando dados da lista: ${listName}`)
+    console.log(`Endpoint: ${endpoint}`)
+
     const response = await fetch(endpoint, {
       method: "GET",
       headers: {
@@ -23,6 +26,7 @@ export async function getSharePointListRaw(listName: string) {
 
     if (!response.ok) {
       const errorData = await response.json()
+      console.error(`Erro na resposta da API:`, errorData)
       throw new Error(`Erro ao obter dados da lista: ${JSON.stringify(errorData)}`)
     }
 
@@ -106,6 +110,9 @@ export async function getSharePointListDetails(listName: string) {
     // Endpoint da API do Microsoft Graph para obter detalhes da lista
     const endpoint = `https://graph.microsoft.com/v1.0/sites/luizotg.sharepoint.com:/sites/Selettra:/lists/${encodedListName}?expand=columns`
 
+    console.log(`Buscando detalhes da lista: ${listName}`)
+    console.log(`Endpoint: ${endpoint}`)
+
     const response = await fetch(endpoint, {
       method: "GET",
       headers: {
@@ -116,6 +123,7 @@ export async function getSharePointListDetails(listName: string) {
 
     if (!response.ok) {
       const errorData = await response.json()
+      console.error(`Erro na resposta da API:`, errorData)
       throw new Error(`Erro ao obter detalhes da lista: ${JSON.stringify(errorData)}`)
     }
 

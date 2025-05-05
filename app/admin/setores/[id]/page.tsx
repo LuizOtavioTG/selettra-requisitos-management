@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { ArrowLeft, Users, RefreshCw, Mail, Phone } from "lucide-react"
+import { ArrowLeft, Users, RefreshCw, Mail, Phone, User } from "lucide-react"
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import {
   getSetorById,
@@ -26,6 +26,7 @@ export default function SetorDetalhesPage() {
 
   const [setor, setSetor] = useState<Setor | null>(null)
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([])
+  const [funcionarioResponsavel, setFuncionarioResponsavel] = useState<Funcionario | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
@@ -47,6 +48,14 @@ export default function SetorDetalhesPage() {
       // Carregar funcionários do setor
       const funcionariosData = await getFuncionariosPorSetor(id)
       setFuncionarios(funcionariosData)
+
+      // Encontrar o funcionário responsável, se houver
+      if (setorData.funcionarioId) {
+        const responsavel = funcionariosData.find((f) => f.id.toString() === setorData.funcionarioId?.toString())
+        setFuncionarioResponsavel(responsavel || null)
+      } else {
+        setFuncionarioResponsavel(null)
+      }
     } catch (err) {
       console.error("Erro ao carregar dados do setor:", err)
       setError("Não foi possível carregar os dados do setor. Verifique sua conexão e permissões.")
@@ -114,6 +123,19 @@ export default function SetorDetalhesPage() {
                   <h3 className="text-lg font-semibold mb-2">Descrição</h3>
                   <p>{setor.descricao}</p>
                 </div>
+
+                {funcionarioResponsavel && (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Funcionário Responsável</h3>
+                    <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-md">
+                      <User className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium">{funcionarioResponsavel.nome}</p>
+                        <p className="text-sm text-muted-foreground">{funcionarioResponsavel.email}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <h3 className="text-lg font-semibold mb-2">Estatísticas</h3>

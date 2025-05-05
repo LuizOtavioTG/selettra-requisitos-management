@@ -9,6 +9,14 @@ import { ProtectedRoute } from "@/components/auth/protected-route"
 import { JsonViewer } from "@/components/debug/json-viewer"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getSharePointListRaw, getSharePointListDetails } from "@/lib/sharepoint/debug-service"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
+
+// Lista de opções disponíveis
+const listaOptions = [
+  { value: "Lista de Requisitos", label: "Lista de Requisitos" },
+  { value: "Lista de Setores", label: "Lista de Setores" },
+]
 
 export default function DebugPage() {
   const [loading, setLoading] = useState(false)
@@ -16,31 +24,37 @@ export default function DebugPage() {
   const [listData, setListData] = useState<any>(null)
   const [columnsData, setColumnsData] = useState<any>(null)
   const [activeTab, setActiveTab] = useState("items")
+  const [selectedList, setSelectedList] = useState("Lista de Requisitos")
 
-  // Carregar dados automaticamente ao montar o componente
+  // Carregar dados automaticamente ao montar o componente ou quando a lista selecionada mudar
   useEffect(() => {
-    loadSetoresList()
-  }, [])
+    loadListData()
+  }, [selectedList])
 
-  // Função para carregar a lista de setores
-  const loadSetoresList = async () => {
+  // Função para carregar os dados da lista selecionada
+  const loadListData = async () => {
     try {
       setLoading(true)
       setError(null)
 
       // Carregar itens da lista
-      const listResult = await getSharePointListRaw("Lista de Setores")
+      const listResult = await getSharePointListRaw(selectedList)
       setListData(listResult)
 
       // Carregar detalhes da lista (colunas)
-      const columnsResult = await getSharePointListDetails("Lista de Setores")
+      const columnsResult = await getSharePointListDetails(selectedList)
       setColumnsData(columnsResult)
     } catch (err: any) {
-      setError(err.message || "Erro ao carregar dados da lista de setores")
+      setError(err.message || `Erro ao carregar dados da ${selectedList}`)
       console.error("Erro ao carregar dados:", err)
     } finally {
       setLoading(false)
     }
+  }
+
+  // Função para lidar com a mudança de lista selecionada
+  const handleListChange = (value: string) => {
+    setSelectedList(value)
   }
 
   return (
@@ -48,22 +62,42 @@ export default function DebugPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">Debug Lista de Setores</h2>
-            <p className="text-muted-foreground">Visualização dos dados brutos da lista de setores do SharePoint</p>
+            <h2 className="text-3xl font-bold tracking-tight">Debug SharePoint</h2>
+            <p className="text-muted-foreground">Visualização dos dados brutos das listas do SharePoint</p>
           </div>
-          <Button onClick={loadSetoresList} disabled={loading} variant="outline">
-            {loading ? (
-              <>
-                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                Carregando...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Atualizar Dados
-              </>
-            )}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={loadListData} disabled={loading} variant="outline">
+              {loading ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  Carregando...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Atualizar Dados
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-4">
+          <Label htmlFor="list-select" className="whitespace-nowrap">
+            Selecionar Lista:
+          </Label>
+          <Select value={selectedList} onValueChange={handleListChange}>
+            <SelectTrigger id="list-select" className="w-[300px]">
+              <SelectValue placeholder="Selecione uma lista" />
+            </SelectTrigger>
+            <SelectContent>
+              {listaOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {error && (
@@ -84,7 +118,7 @@ export default function DebugPage() {
           <TabsContent value="items">
             <Card>
               <CardHeader>
-                <CardTitle>Registros da Lista de Setores</CardTitle>
+                <CardTitle>Registros da {selectedList}</CardTitle>
                 <CardDescription>Todos os itens da lista com seus campos</CardDescription>
               </CardHeader>
               <CardContent>
@@ -125,7 +159,7 @@ export default function DebugPage() {
           <TabsContent value="columns">
             <Card>
               <CardHeader>
-                <CardTitle>Colunas da Lista de Setores</CardTitle>
+                <CardTitle>Colunas da {selectedList}</CardTitle>
                 <CardDescription>Definição de todas as colunas da lista</CardDescription>
               </CardHeader>
               <CardContent>

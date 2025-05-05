@@ -9,6 +9,7 @@ export interface Setor {
   nome: string
   totalFuncionarios: number
   descricao: string
+  funcionarioId?: string | number
 }
 
 // Interface para o tipo Funcionário
@@ -29,7 +30,7 @@ export async function getSetores(): Promise<Setor[]> {
     const token = await getTokenSilently()
 
     // Endpoint da API do Microsoft Graph para acessar a lista de setores
-    const endpoint = `https://graph.microsoft.com/v1.0/sites/luizotg.sharepoint.com:/sites/Selettra:/lists/Lista%20de%20Setores/items?expand=fields`
+    const endpoint = `https://graph.microsoft.com/v1.0/sites/luizotg.sharepoint.com:/sites/Selettra:/lists/Lista%20de%20Setores/items?expand=fields&$top=1000`
 
     const response = await fetch(endpoint, {
       method: "GET",
@@ -60,10 +61,12 @@ export async function getSetores(): Promise<Setor[]> {
     return data.value.map((item: any) => ({
       id: item.id,
       nome: item.fields.Title || "Sem nome",
-      // Verificar diferentes possíveis nomes de campo para descrição
-      descricao: item.fields.Descricao || item.fields.Description || item.fields.Descrição || "Sem descrição",
+      // Usar o nome correto do campo de descrição conforme o JSON
+      descricao: item.fields.Descri_x00e7__x00e3_o || "Sem descrição",
       // Usar a contagem de funcionários ou o valor do campo, ou zero
-      totalFuncionarios: funcionariosPorSetor[item.id] || item.fields.TotalFuncionarios || 0,
+      totalFuncionarios: funcionariosPorSetor[item.id] || 0,
+      // Adicionar o ID do funcionário associado, se existir
+      funcionarioId: item.fields.Funcin_x00e1_rio_x0028_s_x0029_LookupId || null,
     }))
   } catch (error) {
     console.error("Erro ao obter setores do SharePoint:", error)
@@ -78,7 +81,7 @@ export async function getFuncionarios(): Promise<Funcionario[]> {
     const token = await getTokenSilently()
 
     // Endpoint da API do Microsoft Graph para acessar a lista de funcionários
-    const endpoint = `https://graph.microsoft.com/v1.0/sites/luizotg.sharepoint.com:/sites/Selettra:/lists/Lista%20de%20Funcionários/items?expand=fields`
+    const endpoint = `https://graph.microsoft.com/v1.0/sites/luizotg.sharepoint.com:/sites/Selettra:/lists/Lista%20de%20Funcionários/items?expand=fields&$top=1000`
 
     const response = await fetch(endpoint, {
       method: "GET",
@@ -98,7 +101,7 @@ export async function getFuncionarios(): Promise<Funcionario[]> {
 
     // Obter setores para mapear IDs para nomes
     const setoresResponse = await fetch(
-      `https://graph.microsoft.com/v1.0/sites/luizotg.sharepoint.com:/sites/Selettra:/lists/Lista%20de%20Setores/items?expand=fields`,
+      `https://graph.microsoft.com/v1.0/sites/luizotg.sharepoint.com:/sites/Selettra:/lists/Lista%20de%20Setores/items?expand=fields&$top=1000`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -113,7 +116,7 @@ export async function getFuncionarios(): Promise<Funcionario[]> {
     // Mapear os dados para o formato esperado pela aplicação
     return data.value.map((item: any) => {
       // Tentar obter o ID do setor do funcionário
-      const setorId = item.fields.SetorId || item.fields.SetorLookupId || ""
+      const setorId = item.fields.SetorLookupId || ""
 
       return {
         id: item.id,
@@ -148,7 +151,8 @@ export async function adicionarSetor(setor: { nome: string; descricao: string })
       body: JSON.stringify({
         fields: {
           Title: setor.nome,
-          Descricao: setor.descricao,
+          // Usar o nome correto do campo de descrição
+          Descri_x00e7__x00e3_o: setor.descricao,
         },
       }),
     })
@@ -162,7 +166,7 @@ export async function adicionarSetor(setor: { nome: string; descricao: string })
     return {
       id: data.id,
       nome: data.fields.Title,
-      descricao: data.fields.Descricao || "",
+      descricao: data.fields.Descri_x00e7__x00e3_o || "",
       totalFuncionarios: 0,
     }
   } catch (error) {
@@ -203,8 +207,9 @@ export async function getSetorById(id: string): Promise<Setor | null> {
     return {
       id: data.id,
       nome: data.fields.Title || "Sem nome",
-      descricao: data.fields.Descricao || data.fields.Description || data.fields.Descrição || "Sem descrição",
+      descricao: data.fields.Descri_x00e7__x00e3_o || "Sem descrição",
       totalFuncionarios: funcionariosDoSetor.length,
+      funcionarioId: data.fields.Funcin_x00e1_rio_x0028_s_x0029_LookupId || null,
     }
   } catch (error) {
     console.error(`Erro ao obter setor com ID ${id}:`, error)

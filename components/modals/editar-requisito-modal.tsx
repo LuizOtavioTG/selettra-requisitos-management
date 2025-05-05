@@ -17,41 +17,36 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Save } from "lucide-react"
+import type { Requisito } from "@/lib/sharepoint/requisitos-service"
 
 interface EditarRequisitoModalProps {
   isOpen: boolean
   onClose: () => void
   onSave: (data: any) => void
-  requisito: any
+  requisito: Requisito
 }
 
 export function EditarRequisitoModal({ isOpen, onClose, onSave, requisito }: EditarRequisitoModalProps) {
   const [formData, setFormData] = useState({
     codigo: "",
     descricao: "",
+    descricaoCompleta: "",
     status: "",
     situacao: "",
     funcionario: "",
   })
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Atualiza o formulário quando o requisito muda
   useEffect(() => {
     if (requisito) {
-      // Mapear o nome do funcionário para o ID (simplificado para este exemplo)
-      const funcionarioIds: { [key: string]: string } = {
-        "João Silva": "1",
-        "Maria Oliveira": "2",
-        "Carlos Santos": "3",
-        "Ana Pereira": "4",
-        "Roberto Alves": "5",
-      }
-
       setFormData({
         codigo: requisito.codigo || "",
         descricao: requisito.descricao || "",
+        descricaoCompleta: requisito.descricaoCompleta || "",
         status: requisito.status || "Cadastrada",
         situacao: requisito.situacao || "Ativa",
-        funcionario: funcionarioIds[requisito.funcionario] || "",
+        funcionario: requisito.funcionarioId?.toString() || "",
       })
     }
   }, [requisito])
@@ -65,15 +60,23 @@ export function EditarRequisitoModal({ isOpen, onClose, onSave, requisito }: Edi
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    onSave({ ...formData, id: requisito.id })
-    onClose()
+    setIsSubmitting(true)
+
+    try {
+      await onSave({ ...formData, id: requisito.id })
+      onClose()
+    } catch (error) {
+      console.error("Erro ao salvar requisito:", error)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Editar Requisito</DialogTitle>
@@ -117,11 +120,23 @@ export function EditarRequisitoModal({ isOpen, onClose, onSave, requisito }: Edi
               <Textarea
                 id="descricao"
                 name="descricao"
-                placeholder="Descreva o requisito detalhadamente"
+                placeholder="Descreva o requisito brevemente"
                 value={formData.descricao}
                 onChange={handleChange}
-                rows={4}
+                rows={2}
                 required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="descricaoCompleta">Descrição Completa</Label>
+              <Textarea
+                id="descricaoCompleta"
+                name="descricaoCompleta"
+                placeholder="Descreva o requisito detalhadamente, incluindo user stories, critérios de aceite, etc."
+                value={formData.descricaoCompleta}
+                onChange={handleChange}
+                rows={8}
               />
             </div>
 
@@ -154,12 +169,21 @@ export function EditarRequisitoModal({ isOpen, onClose, onSave, requisito }: Edi
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
               Cancelar
             </Button>
-            <Button type="submit">
-              <Save className="mr-2 h-4 w-4" />
-              Salvar Alterações
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Salvar Alterações
+                </>
+              )}
             </Button>
           </DialogFooter>
         </form>

@@ -1,101 +1,73 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Plus, FileText, Filter } from "lucide-react"
+import { Plus, FileText, Filter, RefreshCw } from "lucide-react"
 import Link from "next/link"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { NovoRequisitoModal } from "@/components/modals/novo-requisito-modal"
 import { ProtectedRoute } from "@/components/auth/protected-route"
-
-// Dados de exemplo
-const requisitosIniciais = [
-  {
-    id: "000001",
-    codigo: "REQ-001",
-    descricao: "Implementação de sistema de login com autenticação de dois fatores",
-    status: "Cadastrada",
-    situacao: "Ativa",
-    funcionario: "João Silva",
-    dataCriacao: "10/04/2023",
-  },
-  {
-    id: "000002",
-    codigo: "REQ-002",
-    descricao: "Desenvolvimento de relatório de atividades mensais",
-    status: "Andamento",
-    situacao: "Ativa",
-    funcionario: "Maria Oliveira",
-    dataCriacao: "15/04/2023",
-  },
-  {
-    id: "000003",
-    codigo: "REQ-003",
-    descricao: "Correção de bugs na interface do usuário",
-    status: "Realizada",
-    situacao: "Ativa",
-    funcionario: "Carlos Santos",
-    dataCriacao: "20/04/2023",
-  },
-  {
-    id: "000004",
-    codigo: "REQ-004",
-    descricao: "Implementação de sistema de notificações por email",
-    status: "Andamento",
-    situacao: "Ativa",
-    funcionario: "Ana Pereira",
-    dataCriacao: "25/04/2023",
-  },
-  {
-    id: "000005",
-    codigo: "REQ-005",
-    descricao: "Otimização de consultas ao banco de dados",
-    status: "Cadastrada",
-    situacao: "Inativa",
-    funcionario: "Roberto Alves",
-    dataCriacao: "30/04/2023",
-  },
-]
+import { getRequisitos, adicionarRequisito, type Requisito } from "@/lib/sharepoint/requisitos-service"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertCircle } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function RequisitosPage() {
-  const [requisitos, setRequisitos] = useState(requisitosIniciais)
+  const [requisitos, setRequisitos] = useState<Requisito[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
 
-  const handleSaveRequisito = (data: any) => {
-    // Gerar um ID de 6 dígitos
-    const newId = String(Math.floor(100000 + Math.random() * 900000))
-
-    // Obter o nome do funcionário com base no ID
-    const funcionarioNomes: { [key: string]: string } = {
-      "1": "João Silva",
-      "2": "Maria Oliveira",
-      "3": "Carlos Santos",
-      "4": "Ana Pereira",
-      "5": "Roberto Alves",
+  // Função para carregar os requisitos
+  const carregarRequisitos = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const data = await getRequisitos()
+      setRequisitos(data)
+    } catch (err: any) {
+      console.error("Erro ao carregar requisitos:", err)
+      setError("Não foi possível carregar os requisitos. Verifique sua conexão e permissões.")
+    } finally {
+      setLoading(false)
     }
+  }
 
-    const funcionarioNome = funcionarioNomes[data.funcionario] || "Funcionário Desconhecido"
+  // Carregar requisitos ao montar o componente
+  useEffect(() => {
+    carregarRequisitos()
+  }, [])
 
-    // Criar data atual formatada
-    const hoje = new Date()
-    const dataFormatada = `${hoje.getDate().toString().padStart(2, "0")}/${(hoje.getMonth() + 1).toString().padStart(2, "0")}/${hoje.getFullYear()}`
+  // Função para atualizar a lista
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await carregarRequisitos()
+    setRefreshing(false)
+  }
 
-    // Criar novo requisito
-    const novoRequisito = {
-      id: newId,
-      codigo: data.codigo,
-      descricao: data.descricao,
-      status: data.status,
-      situacao: data.situacao,
-      funcionario: funcionarioNome,
-      dataCriacao: dataFormatada,
+  // Função para salvar um novo requisito
+  const handleSaveRequisito = async (data: any) => {
+    try {
+      setError(null)
+      const novoRequisito = await adicionarRequisito({
+        codigo: data.codigo,
+        descricao: data.descricao,
+        descricaoCompleta: data.descricaoCompleta,
+        status: data.status,
+        situacao: data.situacao,
+        funcionarioId: data.funcionario,
+      })
+      setRequisitos([novoRequisito, ...requisitos])
+      return true
+    } catch (err: any) {
+      console.error("Erro ao salvar requisito:", err)
+      setError("Não foi possível adicionar o requisito. Verifique sua conexão e permissões.")
+      return false
     }
-
-    // Adicionar à lista
-    setRequisitos([novoRequisito, ...requisitos])
   }
 
   return (
@@ -107,6 +79,10 @@ export default function RequisitosPage() {
             <p className="text-muted-foreground">Gerencie os requisitos do sistema</p>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={handleRefresh} disabled={loading || refreshing}>
+              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+              <span className="sr-only">Atualizar</span>
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm">
@@ -130,63 +106,87 @@ export default function RequisitosPage() {
           </div>
         </div>
 
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Erro</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle>Lista de Requisitos</CardTitle>
             <CardDescription>Visualize e gerencie todos os requisitos cadastrados no sistema</CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Código</TableHead>
-                  <TableHead className="w-[300px]">Descrição</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Situação</TableHead>
-                  <TableHead>Funcionário</TableHead>
-                  <TableHead>Data de Criação</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {requisitos.map((requisito) => (
-                  <TableRow key={requisito.id}>
-                    <TableCell className="font-medium">{requisito.id}</TableCell>
-                    <TableCell>{requisito.codigo}</TableCell>
-                    <TableCell className="max-w-[300px] truncate">{requisito.descricao}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          requisito.status === "Realizada"
-                            ? "success"
-                            : requisito.status === "Andamento"
-                              ? "warning"
-                              : "default"
-                        }
-                      >
-                        {requisito.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={requisito.situacao === "Ativa" ? "outline" : "secondary"}>
-                        {requisito.situacao}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{requisito.funcionario}</TableCell>
-                    <TableCell>{requisito.dataCriacao}</TableCell>
-                    <TableCell className="text-right">
-                      <Link href={`/admin/requisitos/${requisito.id}`}>
-                        <Button variant="ghost" size="sm">
-                          <FileText className="h-4 w-4" />
-                          <span className="sr-only">Detalhes</span>
-                        </Button>
-                      </Link>
-                    </TableCell>
-                  </TableRow>
+            {loading ? (
+              <div className="space-y-2">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <Skeleton key={i} className="h-12 w-full" />
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Código</TableHead>
+                    <TableHead className="w-[300px]">Descrição</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Situação</TableHead>
+                    <TableHead>Funcionário</TableHead>
+                    <TableHead>Data de Criação</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {requisitos.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                        Nenhum requisito encontrado
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    requisitos.map((requisito) => (
+                      <TableRow key={requisito.id}>
+                        <TableCell className="font-medium">{requisito.id}</TableCell>
+                        <TableCell>{requisito.codigo}</TableCell>
+                        <TableCell className="max-w-[300px] truncate">{requisito.descricao}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              requisito.status === "Realizada"
+                                ? "success"
+                                : requisito.status === "Andamento"
+                                  ? "warning"
+                                  : "default"
+                            }
+                          >
+                            {requisito.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={requisito.situacao === "Ativa" ? "outline" : "secondary"}>
+                            {requisito.situacao}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{requisito.funcionarioNome || "Não atribuído"}</TableCell>
+                        <TableCell>{requisito.dataCriacao}</TableCell>
+                        <TableCell className="text-right">
+                          <Link href={`/admin/requisitos/${requisito.id}`}>
+                            <Button variant="ghost" size="sm">
+                              <FileText className="h-4 w-4" />
+                              <span className="sr-only">Detalhes</span>
+                            </Button>
+                          </Link>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
 

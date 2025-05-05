@@ -21,17 +21,19 @@ import { Save } from "lucide-react"
 interface NovoRequisitoModalProps {
   isOpen: boolean
   onClose: () => void
-  onSave: (data: any) => void
+  onSave: (data: any) => Promise<boolean> | void
 }
 
 export function NovoRequisitoModal({ isOpen, onClose, onSave }: NovoRequisitoModalProps) {
   const [formData, setFormData] = useState({
     codigo: "",
     descricao: "",
+    descricaoCompleta: "",
     status: "Cadastrada",
     situacao: "Ativa",
     funcionario: "",
   })
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -42,22 +44,34 @@ export function NovoRequisitoModal({ isOpen, onClose, onSave }: NovoRequisitoMod
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    onSave(formData)
-    setFormData({
-      codigo: "",
-      descricao: "",
-      status: "Cadastrada",
-      situacao: "Ativa",
-      funcionario: "",
-    })
-    onClose()
+    setIsSubmitting(true)
+
+    try {
+      const result = await onSave(formData)
+
+      if (result !== false) {
+        setFormData({
+          codigo: "",
+          descricao: "",
+          descricaoCompleta: "",
+          status: "Cadastrada",
+          situacao: "Ativa",
+          funcionario: "",
+        })
+        onClose()
+      }
+    } catch (error) {
+      console.error("Erro ao salvar requisito:", error)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Novo Requisito</DialogTitle>
@@ -101,11 +115,23 @@ export function NovoRequisitoModal({ isOpen, onClose, onSave }: NovoRequisitoMod
               <Textarea
                 id="descricao"
                 name="descricao"
-                placeholder="Descreva o requisito detalhadamente"
+                placeholder="Descreva o requisito brevemente"
                 value={formData.descricao}
                 onChange={handleChange}
-                rows={4}
+                rows={2}
                 required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="descricaoCompleta">Descrição Completa</Label>
+              <Textarea
+                id="descricaoCompleta"
+                name="descricaoCompleta"
+                placeholder="Descreva o requisito detalhadamente, incluindo user stories, critérios de aceite, etc."
+                value={formData.descricaoCompleta}
+                onChange={handleChange}
+                rows={8}
               />
             </div>
 
@@ -138,12 +164,21 @@ export function NovoRequisitoModal({ isOpen, onClose, onSave }: NovoRequisitoMod
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
               Cancelar
             </Button>
-            <Button type="submit">
-              <Save className="mr-2 h-4 w-4" />
-              Salvar
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Salvar
+                </>
+              )}
             </Button>
           </DialogFooter>
         </form>
