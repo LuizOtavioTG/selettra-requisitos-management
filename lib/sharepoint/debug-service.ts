@@ -7,7 +7,13 @@ export async function getSharePointListRaw(listName: string) {
     const token = await getTokenSilently()
 
     // Codificar o nome da lista para URL
-    const encodedListName = encodeURIComponent(listName)
+    // Tratamento especial para a lista de funcionários que tem codificação diferente na URL
+    let encodedListName
+    if (listName === "Lista de Funcionários") {
+      encodedListName = "Lista%20de%20Funcion%C3%A1rios"
+    } else {
+      encodedListName = encodeURIComponent(listName)
+    }
 
     // Endpoint da API do Microsoft Graph para acessar a lista
     // Adicionando top=1000 para garantir que obtemos todos os itens (até 1000)
@@ -44,7 +50,13 @@ export async function getSharePointItemRaw(listName: string, itemId: string) {
     const token = await getTokenSilently()
 
     // Codificar o nome da lista para URL
-    const encodedListName = encodeURIComponent(listName)
+    // Tratamento especial para a lista de funcionários que tem codificação diferente na URL
+    let encodedListName
+    if (listName === "Lista de Funcionários") {
+      encodedListName = "Lista%20de%20Funcion%C3%A1rios"
+    } else {
+      encodedListName = encodeURIComponent(listName)
+    }
 
     // Endpoint da API do Microsoft Graph para acessar o item
     const endpoint = `https://graph.microsoft.com/v1.0/sites/luizotg.sharepoint.com:/sites/Selettra:/lists/${encodedListName}/items/${itemId}?expand=fields`
@@ -105,7 +117,13 @@ export async function getSharePointListDetails(listName: string) {
     const token = await getTokenSilently()
 
     // Codificar o nome da lista para URL
-    const encodedListName = encodeURIComponent(listName)
+    // Tratamento especial para a lista de funcionários que tem codificação diferente na URL
+    let encodedListName
+    if (listName === "Lista de Funcionários") {
+      encodedListName = "Lista%20de%20Funcion%C3%A1rios"
+    } else {
+      encodedListName = encodeURIComponent(listName)
+    }
 
     // Endpoint da API do Microsoft Graph para obter detalhes da lista
     const endpoint = `https://graph.microsoft.com/v1.0/sites/luizotg.sharepoint.com:/sites/Selettra:/lists/${encodedListName}?expand=columns`

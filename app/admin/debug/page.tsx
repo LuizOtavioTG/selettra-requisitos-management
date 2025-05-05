@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label"
 const listaOptions = [
   { value: "Lista de Requisitos", label: "Lista de Requisitos" },
   { value: "Lista de Setores", label: "Lista de Setores" },
+  { value: "Lista de Funcionários", label: "Lista de Funcionários" },
 ]
 
 export default function DebugPage() {
