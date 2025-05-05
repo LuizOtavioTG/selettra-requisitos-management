@@ -5,19 +5,32 @@ import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { ArrowLeft, Users, RefreshCw, Mail, Phone, User } from "lucide-react"
+import { ArrowLeft, Users, RefreshCw, Mail, Phone, User, Edit, Trash } from "lucide-react"
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import {
   getSetorById,
   getFuncionariosPorSetor,
+  excluirSetor,
   type Setor,
   type Funcionario,
 } from "@/lib/sharepoint/sharepoint-service"
+import { getFuncionarios } from "@/lib/sharepoint/funcionarios-service"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
+import { EditarSetorModal } from "@/components/modals/editar-setor-modal"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 export default function SetorDetalhesPage() {
   const params = useParams()
@@ -26,10 +39,14 @@ export default function SetorDetalhesPage() {
 
   const [setor, setSetor] = useState<Setor | null>(null)
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([])
+  const [todosFuncionarios, setTodosFuncionarios] = useState<Funcionario[]>([])
   const [funcionarioResponsavel, setFuncionarioResponsavel] = useState<Funcionario | null>(null)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [deletingSetor, setDeletingSetor] = useState(false)
 
   // Função para carregar os dados do setor e seus funcionários
   const carregarDados = async () => {
@@ -48,6 +65,10 @@ export default function SetorDetalhesPage() {
       // Carregar funcionários do setor
       const funcionariosData = await getFuncionariosPorSetor(id)
       setFuncionarios(funcionariosData)
+
+      // Carregar todos os funcionários para o modal de edição
+      const todosFuncionariosData = await getFuncionarios()
+      setTodosFuncionarios(todosFuncionariosData)
 
       // Encontrar o funcionário responsável, se houver
       if (setorData.funcionarioId) {
@@ -76,6 +97,30 @@ export default function SetorDetalhesPage() {
     setRefreshing(false)
   }
 
+  // Função para salvar edições no setor
+  const handleSaveSetor = (setorAtualizado: Setor) => {
+    // Atualizar o estado local com o setor atualizado
+    setSetor(setorAtualizado)
+
+    // Recarregar os dados para atualizar o funcionário responsável
+    carregarDados()
+  }
+
+  // Função para excluir o setor
+  const handleDeleteSetor = async () => {
+    try {
+      setDeletingSetor(true)
+      await excluirSetor(id)
+      router.push("/admin/setores")
+    } catch (err: any) {
+      console.error("Erro ao excluir setor:", err)
+      setError("Não foi possível excluir o setor. Verifique sua conexão e permissões.")
+    } finally {
+      setDeletingSetor(false)
+      setIsDeleteDialogOpen(false)
+    }
+  }
+
   return (
     <ProtectedRoute>
       <div className="space-y-6">
@@ -95,6 +140,14 @@ export default function SetorDetalhesPage() {
                 Voltar
               </Button>
             </Link>
+            <Button variant="outline" onClick={() => setIsEditModalOpen(true)} disabled={!setor}>
+              <Edit className="mr-2 h-4 w-4" />
+              Editar
+            </Button>
+            <Button variant="destructive" onClick={() => setIsDeleteDialogOpen(true)} disabled={!setor}>
+              <Trash className="mr-2 h-4 w-4" />
+              Excluir
+            </Button>
           </div>
         </div>
 
@@ -167,6 +220,7 @@ export default function SetorDetalhesPage() {
                         <TableHead>Email</TableHead>
                         <TableHead>Telefone</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -190,6 +244,14 @@ export default function SetorDetalhesPage() {
                               {funcionario.status}
                             </Badge>
                           </TableCell>
+                          <TableCell className="text-right">
+                            <Link href={`/admin/funcionarios/${funcionario.id}`}>
+                              <Button variant="ghost" size="sm">
+                                <User className="h-4 w-4" />
+                                <span className="sr-only">Detalhes</span>
+                              </Button>
+                            </Link>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -205,6 +267,45 @@ export default function SetorDetalhesPage() {
             <AlertDescription>O setor solicitado não foi encontrado ou não existe.</AlertDescription>
           </Alert>
         )}
+
+        {setor && (
+          <EditarSetorModal
+            isOpen={isEditModalOpen}
+            onClose={() => setIsEditModalOpen(false)}
+            onSave={handleSaveSetor}
+            setor={setor}
+            funcionarios={todosFuncionarios.map((f) => ({ id: f.id, nome: f.nome }))}
+          />
+        )}
+
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir Setor</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir este setor? Esta ação não pode ser desfeita.
+                {setor?.totalFuncionarios > 0 && (
+                  <p className="mt-2 text-destructive font-medium">
+                    Atenção: Este setor possui {setor.totalFuncionarios} funcionários associados.
+                  </p>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deletingSetor}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteSetor} disabled={deletingSetor}>
+                {deletingSetor ? (
+                  <>
+                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                    Excluindo...
+                  </>
+                ) : (
+                  "Sim, excluir"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </ProtectedRoute>
   )

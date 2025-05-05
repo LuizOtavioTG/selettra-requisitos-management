@@ -235,6 +235,8 @@ export async function atualizarFuncionario(
 
     const endpoint = `https://graph.microsoft.com/v1.0/sites/luizotg.sharepoint.com:/sites/Selettra:/lists/Lista%20de%20Funcion%C3%A1rios/items/${id}`
 
+    console.log("Atualizando funcionário:", id, funcionario)
+
     const response = await fetch(endpoint, {
       method: "PATCH",
       headers: {
@@ -259,7 +261,12 @@ export async function atualizarFuncionario(
     }
 
     // Obter o funcionário atualizado
-    return (await getFuncionarioById(id)) as Funcionario
+    const funcionarioAtualizado = await getFuncionarioById(id)
+    if (!funcionarioAtualizado) {
+      throw new Error("Não foi possível obter o funcionário atualizado")
+    }
+
+    return funcionarioAtualizado
   } catch (error) {
     console.error(`Erro ao atualizar funcionário com ID ${id}:`, error)
     throw error

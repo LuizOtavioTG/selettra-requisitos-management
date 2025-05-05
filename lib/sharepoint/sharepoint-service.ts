@@ -175,6 +175,82 @@ export async function adicionarSetor(setor: { nome: string; descricao: string })
   }
 }
 
+// Função para atualizar um setor existente
+export async function atualizarSetor(
+  id: string,
+  setor: {
+    nome: string
+    descricao: string
+    funcionarioId?: string | number
+  },
+): Promise<Setor> {
+  try {
+    const token = await getTokenSilently()
+
+    const endpoint = `https://graph.microsoft.com/v1.0/sites/luizotg.sharepoint.com:/sites/Selettra:/lists/Lista%20de%20Setores/items/${id}`
+
+    console.log("Atualizando setor:", id, setor)
+
+    const response = await fetch(endpoint, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        fields: {
+          Title: setor.nome,
+          Descri_x00e7__x00e3_o: setor.descricao,
+          Funcin_x00e1_rio_x0028_s_x0029_LookupId: setor.funcionarioId,
+        },
+      }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(`Erro ao atualizar setor: ${JSON.stringify(errorData)}`)
+    }
+
+    // Obter o setor atualizado
+    const setorAtualizado = await getSetorById(id)
+    if (!setorAtualizado) {
+      throw new Error("Não foi possível obter o setor atualizado")
+    }
+
+    return setorAtualizado
+  } catch (error) {
+    console.error(`Erro ao atualizar setor com ID ${id}:`, error)
+    throw error
+  }
+}
+
+// Função para excluir um setor
+export async function excluirSetor(id: string): Promise<boolean> {
+  try {
+    const token = await getTokenSilently()
+
+    const endpoint = `https://graph.microsoft.com/v1.0/sites/luizotg.sharepoint.com:/sites/Selettra:/lists/Lista%20de%20Setores/items/${id}`
+
+    const response = await fetch(endpoint, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    })
+
+    if (!response.ok) {
+      const errorData = await response.text()
+      throw new Error(`Erro ao excluir setor: ${errorData}`)
+    }
+
+    return true
+  } catch (error) {
+    console.error(`Erro ao excluir setor com ID ${id}:`, error)
+    throw error
+  }
+}
+
 // Função para obter detalhes de um setor específico
 export async function getSetorById(id: string): Promise<Setor | null> {
   try {
